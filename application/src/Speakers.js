@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useContext, useReducer } from "react";
-
+import React, { useState, useEffect, useContext, useReducer, useCallback, useMemo } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../static/site.css";
 import { Header } from "../src/Header";
@@ -11,15 +10,11 @@ import { ConfigContext } from './App';
 import speakersReducer from './speakersReducer';
 
 const Speakers = ({ }) => {
+
   const [speakingSaturday, setSpeakingSaturday] = useState(true);
   const [speakingSunday, setSpeakingSunday] = useState(true);
-  // const [speakerList, setSpeakerList] = useState([]);
-
-
   const [speakerList, dispatch] = useReducer(speakersReducer, []);
-
   const [isLoading, setIsLoading] = useState(true);
-
   const context = useContext(ConfigContext);
 
   useEffect(() => {
@@ -33,7 +28,6 @@ const Speakers = ({ }) => {
       const speakerListServerFilter = SpeakerData.filter(({ sat, sun }) => {
         return (speakingSaturday && sat) || (speakingSunday && sun);
       });
-      //setSpeakerList(speakerListServerFilter);
       dispatch({
         type: "setSpeakerList",
         data: speakerListServerFilter
@@ -42,47 +36,42 @@ const Speakers = ({ }) => {
     return () => {
       console.log("cleanup");
     };
-  }, []); // [speakingSunday, speakingSaturday]);
+  }, []);
 
   const handleChangeSaturday = () => {
     setSpeakingSaturday(!speakingSaturday);
   };
 
+  const newSpeakerList = useMemo(() => speakerList
+    .filter(
+      ({ sat, sun }) => (speakingSaturday && sat) || (speakingSunday && sun)
+    )
+    .sort(function (a, b) {
+      if (a.firstName < b.firstName) {
+        return -1;
+      }
+      if (a.firstName > b.firstName) {
+        return 1;
+      }
+      return 0;
+    }), [speakingSaturday, speakingSunday, speakerList]);
+
   const speakerListFiltered = isLoading
     ? []
-    : speakerList
-      .filter(
-        ({ sat, sun }) => (speakingSaturday && sat) || (speakingSunday && sun)
-      )
-      .sort(function (a, b) {
-        if (a.firstName < b.firstName) {
-          return -1;
-        }
-        if (a.firstName > b.firstName) {
-          return 1;
-        }
-        return 0;
-      });
+    : newSpeakerList;
 
   const handleChangeSunday = () => {
     setSpeakingSunday(!speakingSunday);
   };
 
-  const heartFavoriteHandler = (e, favoriteValue) => {
+  const heartFavoriteHandler = useCallback((e, favoriteValue) => {
     e.preventDefault();
     const sessionId = parseInt(e.target.attributes["data-sessionid"].value);
     dispatch({
       type: favoriteValue === true ? "favorite" : "unfavorite",
       sessionId
     });
-    // setSpeakerList(speakerList.map(item => {
-    //   if (item.id === sessionId) {
-    //     item.favorite = favoriteValue;
-    //     return item;
-    //   }
-    //   return item;
-    // }));
-  };
+  }, []);
 
   if (isLoading) return <div>Loading...</div>;
 
